@@ -2,13 +2,15 @@ import pytest
 from app import schema
 import uuid
 
-def test_get_all_posts(authorized_client, test_posts):
+# GET Endpoints Tests
+def test_get_all_posts(authorized_client, test_user, test_posts):
     res = authorized_client.get("/posts/")
     def validate(post):
         return schema.PostOut(**post)
     posts_map = map(validate, res.json()['data'])
     posts_list = list(posts_map)
-    assert len(res.json()['data']) == len(test_posts)
+    user_posts = [post for post in test_posts if str(post.user_id) == str(test_user['id'])]
+    assert len(res.json()['data']) == len(user_posts)
     assert res.status_code == 200
     
 def test_unauthorized_user_get_all_post(client, test_posts):
@@ -29,6 +31,7 @@ def test_get_one_post(authorized_client, test_posts):
     post = schema.PostOut(**post_data)
     assert post.id == test_posts[0].id
 
+# POST Endpoint Tests
 @pytest.mark.parametrize("title, content, published", [
     ("awesome new title", "awesome new content", True),
     ("favorite pizza", "i love pepperoni", False),
@@ -61,6 +64,7 @@ def test_unauthorized_user_create_post(client, test_user):
         "/posts/", json={"title": "arbitrary title", "content": "content lang"})
     assert res.status_code == 401
 
+# DELETE Endpoint Tests
 def test_unauthorized_user_delete_post(client, test_posts):
     res = client.delete(f"/posts/{test_posts[0].id}")
     assert res.status_code == 401
@@ -80,5 +84,49 @@ def test_delete_post_non_exist(authorized_client, test_user, test_posts):
 
 def test_delete_other_user_post(authorized_client, test_user, test_posts):
     res = authorized_client.delete(
-        f"/posts/{test_posts[1].id}")
+        f"/posts/{test_posts[3].id}")
     assert res.status_code == 403
+
+# UPDATE Endpoints Test
+def test_update_post(authorized_client, test_user, test_posts):
+    data = {
+        "title": "updated title",
+        "content": "updated content",
+        "id": str(test_posts[0].id)
+
+    }
+    res = authorized_client.put(f"/posts/{str(test_posts[0].id)}", json=data)
+    updated_post = schema.Post(**res.json())
+    assert res.status_code == 200
+    assert updated_post.title == data['title']
+    assert updated_post.content == data['content']
+
+
+def test_update_other_user_post(authorized_client, test_user, test_user2, test_posts):
+    data = {
+        "title": "updated title",
+        "content": "updated content",
+        "id": str(test_posts[3].id)
+
+    }
+    res = authorized_client.put(f"/posts/{str(test_posts[3].id)}", json=data)
+    assert res.status_code == 403
+
+
+def test_unauthorized_user_update_post(client, test_user, test_posts):
+    res = client.put(
+        f"/posts/{test_posts[0].id}")
+    assert res.status_code == 401
+
+
+def test_update_post_non_exist(authorized_client, test_user, test_posts):
+    data = {
+        "title": "updated title",
+        "content": "updated content",
+        "id": str(test_posts[3].id)
+
+    }
+    non_existent_uuid = uuid.uuid4()
+    res = authorized_client.put(
+        f"/posts/{non_existent_uuid}", json=data)
+    assert res.status_code == 404
