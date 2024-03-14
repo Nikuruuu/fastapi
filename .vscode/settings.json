@@ -1,0 +1,11 @@
+{
+  "cSpell.words": [
+    "fastapi",
+    "mockdb",
+    "ondelete",
+    "passlib",
+    "pydantic",
+    "sqlalchemy",
+    "sqltypes"
+  ]
+}
